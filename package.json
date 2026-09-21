@@ -1,0 +1,32 @@
+{
+  "name": "controlcitas",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx watch src/index.ts",
+    "tunnel": "ssh -o ServerAliveInterval=60 -R 80:localhost:3000 nokey@localhost.run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "^2.23.0",
+    "@google/generative-ai": "^0.24.1",
+    "@prisma/client": "5",
+    "@types/cors": "^2.8.19",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.1",
+    "express": "^5.2.1",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.2",
+    "prisma": "5",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}

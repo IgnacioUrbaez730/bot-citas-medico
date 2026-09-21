@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+model Doctor {
+  id               String        @id @default(uuid())
+  auth_id          String        @unique
+  name             String
+  specialty        String?
+  medicalLicense   String?
+  clinicName       String?
+  clinicAddress    String?
+  workStartTime    String        @default("08:00")
+  workEndTime      String        @default("17:00")
+  slotDuration     Int           @default(30)
+  createdAt        DateTime      @default(now())
+  appointments     Appointment[]
+  patients         Patient[]
+}
+
+model Patient {
+  id               String        @id @default(uuid())
+  doctorId         String
+  phone            String
+  name             String?
+  nationalId       String?
+  birthDate        DateTime?
+  createdAt        DateTime      @default(now())
+  doctor           Doctor        @relation(fields: [doctorId], references: [id])
+  appointments     Appointment[]
+  @@unique([phone, doctorId])
+}
+
+model Appointment {
+  id               String            @id @default(uuid())
+  doctorId         String
+  patientId        String
+  dateTime         DateTime
+  status           AppointmentStatus @default(PENDING)
+  reason           String?
+  doctor           Doctor            @relation(fields: [doctorId], references: [id])
+  patient          Patient           @relation(fields: [patientId], references: [id])
+  clinicalNote     ClinicalNote?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  @@unique([doctorId, dateTime])
+}
+
+model ClinicalNote {
+  id               String        @id @default(uuid())
+  appointmentId    String        @unique
+  audioUrl         String?
+  soapData         Json?
+  prescriptionUrl  String?
+  isSigned         Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  appointment      Appointment   @relation(fields: [appointmentId], references: [id])
+}
+
+model BotSession {
+  phone            String        @id
+  doctorId         String
+  step             String        @default("WELCOME")
+  temporalData     Json?
+  updatedAt        DateTime      @updatedAt
+}
+
+model Message {
+  id               String        @id @default(uuid())
+  phone            String
+  sender           String        // "patient", "bot", o "doctor"
+  text             String
+  createdAt        DateTime      @default(now())
+}
+
