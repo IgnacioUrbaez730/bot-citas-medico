@@ -130,6 +130,60 @@ app.post('/api/doctor/book-manual', async (req, res) => {
   }
 });
 
+// ENDPOINT PARA ELIMINAR/REPROGRAMAR CITA DESDE FLUTTER
+app.post('/api/doctor/update-appointment', async (req, res) => {
+  const { appointmentId, action, newDateTime } = req.body;
+  if (!appointmentId || !action) {
+    return res.status(400).json({ error: 'Faltan datos requeridos (appointmentId, action)' });
+  }
+
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { doctor: true, patient: { include: { contact: true } } }
+    });
+
+    if (!appointment) throw new Error('Cita no encontrada');
+
+    const phone = appointment.patient.contactPhone;
+    const { WhatsAppProvider } = require('./providers/whatsapp.provider');
+    const whatsappProvider = new WhatsAppProvider();
+
+    if (action === 'CANCEL') {
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { status: 'CANCELLED' }
+      });
+
+      const msg = `⚠️ *Cita Cancelada*\nHola, tu cita para *\n${appointment.patient.name}* ha sido cancelada por el doctor. Por favor contáctanos para agendar una nueva.`;
+      await whatsappProvider.sendTextMessage(phone, msg);
+    } 
+    else if (action === 'RESCHEDULE') {
+      if (!newDateTime) throw new Error('Falta newDateTime para reprogramar');
+      
+      const appointmentDate = new Date(newDateTime);
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { dateTime: appointmentDate }
+      });
+
+      const options: Intl.DateTimeFormatOptions = { timeZone: 'America/Caracas', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+      const dateStr = appointmentDate.toLocaleString('es-VE', options);
+
+      const msg = `🔄 *Cita Reprogramada*\nHola, el ${appointment.doctor.name} ha reprogramado tu cita para *\n${appointment.patient.name}*\n\n📅 Nuevo horario: ${dateStr}\n\nTe esperamos.`;
+      await whatsappProvider.sendTextMessage(phone, msg);
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('[Update Appointment Error]:', error);
+    res.status(500).json({ error: 'Error actualizando la cita: ' + error.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('Servidor de Citas IA activo ??');
 });
