@@ -18,7 +18,11 @@ Define la lógica pura del negocio de la salud.
 - **Cita (Appointment):** El espacio de tiempo reservado para un Paciente con un Doctor.
 - **Historia / Nota (ClinicalNote):** El registro médico generado después de la cita.
 
-## 3. Flujo Conceptual Principal
+## 3. Reglas Estrictas de Migración y Operación
+- **Dependencia de Contacto:** `Message`, `BotSession` y `Patient` tienen como llave foránea el teléfono (`phone`) hacia `Contact`. Por diseño estricto de base de datos relacional, **el Contacto debe existir antes de poder guardar un mensaje o iniciar una sesión**.
+- **Upsert en Webhook:** Para cumplir la regla anterior sin que los mensajes se pierdan, el backend Node.js (`whatsapp.service.ts`) realiza obligatoriamente un `upsert` en la tabla `Contact` en el milisegundo exacto en que entra el payload de Meta, garantizando que el `Contact` siempre exista antes de que se propague a Flutter o a la IA.
+
+## 4. Flujo Conceptual Principal
 1. Un **Contacto** escribe al sistema.
 2. La IA evalúa la conversación y determina si es una emergencia (se cancela el flujo) o una consulta.
 3. La IA captura el nombre del **Paciente** y el motivo de consulta.

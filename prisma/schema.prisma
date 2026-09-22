@@ -18,6 +18,7 @@ model Doctor {
   clinicAddress  String?
   workStartTime  String        @default("08:00")
   workEndTime    String        @default("17:00")
+  scheduleText   String?       @default("Lunes a Viernes de 8:00 AM a 5:00 PM")
   slotDuration   Int           @default(30)
   createdAt      DateTime      @default(now())
   appointments   Appointment[]

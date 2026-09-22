@@ -24,6 +24,14 @@ Si el médico decide responder manualmente desde la aplicación:
 4. El backend de Node.js recibe la petición, cancela cualquier temporizador (`setTimeout`) que la IA tuviera pendiente para ese número, y usa la API de Meta para enviar el mensaje real al WhatsApp del paciente.
 5. El bot queda silenciado para ese paciente hasta que se reinicie la sesión.
 
-## 5. Próximos Desarrollos (Pendientes)
+## 5. Subsistema de Contactos (CRM Básico)
+Se ha implementado una capa CRM (Customer Relationship Management) dentro de la app para gestionar la identidad de los pacientes independientemente de sus sesiones:
+1. **Edición de Contacto:** Al entrar a un chat (`ChatScreen`), la barra superior muestra el nombre guardado. Un botón de lápiz permite hacer un `update` a la tabla `Contact`, asignando un `alias`.
+2. **Borrado de Chats:** En la lista de pacientes activos (`ChatListScreen`), el doctor puede eliminar el historial de mensajes de un chat, lo que borra los registros de `Message` y `BotSession`, pero conserva la identidad en la tabla `Contact`.
+3. **Agenda Global:** El botón flotante (FAB) abre el `ContactsScreen`, donde se visualiza el directorio completo de pacientes que han interactuado. Permite:
+   - Iniciar un chat viejo con un solo toque.
+   - Registrar manualmente un "Nuevo Contacto" y enviarle el primer mensaje saliente desde la clínica.
+
+## 6. Próximos Desarrollos (Pendientes)
 - **Vista de Calendario:** Leer la tabla `Appointment` de Supabase y mostrar las citas confirmadas por la IA en una cuadrícula semanal/mensual.
 - **Compilación de APK:** Empaquetar la aplicación en formato Android instalable (`flutter build apk`).
