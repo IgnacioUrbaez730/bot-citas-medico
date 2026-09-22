@@ -220,7 +220,9 @@ export class GeminiProvider {
       console.error('[GeminiProvider] Error procesando con IA:', error);
       return `Disculpa, mi cerebro virtual está en mantenimiento. Error interno: ${error.message || 'Desconocido'}`;
     }
-    // MÃ©todo para extraer configuraciÃ³n mÃ©dica desde texto libre (Frontend)
+  }
+
+  // MÃ©todo para extraer configuraciÃ³n mÃ©dica desde texto libre (Frontend)
   async extractConfig(text: string): Promise<any> {
     try {
       const prompt = `Analiza el siguiente texto dictado por un mÃ©dico y extrae la configuraciÃ³n de su clÃ­nica.
@@ -253,5 +255,4 @@ Texto del mÃ©dico: "${text}"`;
       throw error;
     }
   }
-}
 }
