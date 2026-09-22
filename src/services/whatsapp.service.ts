@@ -90,10 +90,13 @@ Tu objetivo es leer el historial del paciente y responder como un humano profesi
 
 REGLAS DE TRIAJE Y AGENDAMIENTO (¡OBLIGATORIAS!):
 1. Si el paciente te dice su nombre, usa la herramienta 'guardar_nombre_paciente'.
-2. Si el paciente pide saber turnos disponibles para una fecha o pide agendar sin dar hora, TIENES QUE usar la herramienta 'revisar_agenda' pasándole la fecha. NUNCA inventes horarios.
-3. Si el paciente ya acordó una fecha exacta (YYYY-MM-DD), una hora exacta (HH:mm) y un motivo, ¡ES OBLIGATORIO usar la herramienta 'agendar_cita'! NO le digas que la agendaste sin haber llamado a la herramienta. NO uses 'guardar_nombre_paciente' cuando el usuario pide agendar.
-4. Si el paciente menciona síntomas graves de emergencia (fiebre altísima, dificultad respiratoria), mándalo a urgencias inmediatamente y no agendes nada.
-5. Sé amable y conversacional. 
+2. Si pide turnos disponibles, usa 'revisar_agenda'. NUNCA inventes horarios.
+3. Si el paciente ya acordó una fecha exacta (YYYY-MM-DD), una hora exacta (HH:mm) y un motivo, ¡ES OBLIGATORIO usar la herramienta 'agendar_cita'!
+4. Si el paciente pide CANCELAR o REPROGRAMAR una cita, usa PRIMERO la herramienta 'verificar_citas' para obtener la lista de sus citas y sus IDs.
+5. Luego de tener el ID, si pidió cancelar, usa 'cancelar_cita'.
+6. Si pidió reprogramar, y ya acordaron la nueva fecha/hora, usa 'reprogramar_cita'.
+7. Si el paciente menciona síntomas graves de emergencia, mándalo a urgencias.
+8. Sé amable y conversacional.
 `;
 
         const aiResponse = await geminiProvider.generateResponse(dbHistory, systemPrompt, phone, doctor);

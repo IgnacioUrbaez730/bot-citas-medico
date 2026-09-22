@@ -81,6 +81,41 @@ export class GeminiProvider {
             },
             required: ['fecha', 'hora', 'motivo'],
           },
+        },
+        {
+          name: 'verificar_citas',
+          description: 'Busca las citas programadas que tiene este paciente. Úsala cuando el paciente quiera cancelar o reprogramar una cita para saber el ID de la cita.',
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              dummy: { type: Type.STRING, description: 'No usado, enviar string vacio' }
+            },
+            required: []
+          }
+        },
+        {
+          name: 'cancelar_cita',
+          description: 'Cancela una cita existente usando su ID.',
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              appointmentId: { type: Type.STRING, description: 'ID de la cita a cancelar' }
+            },
+            required: ['appointmentId']
+          }
+        },
+        {
+          name: 'reprogramar_cita',
+          description: 'Reprograma una cita existente a una nueva fecha y hora usando su ID.',
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              appointmentId: { type: Type.STRING, description: 'ID de la cita a reprogramar' },
+              fecha: { type: Type.STRING, description: 'Nueva fecha (YYYY-MM-DD)' },
+              hora: { type: Type.STRING, description: 'Nueva hora (HH:mm en formato 24h)' }
+            },
+            required: ['appointmentId', 'fecha', 'hora']
+          }
         }
       ];
 
@@ -186,6 +221,55 @@ export class GeminiProvider {
           } catch (err: any) {
             console.error(`[GeminiProvider] ❌ Error agendando cita:`, err);
             toolResponseData = { success: false, message: 'La hora seleccionada ya está ocupada o hubo un error en la base de datos. Pide al paciente que elija otra hora.' };
+          }
+        }
+        else if (call.name === 'verificar_citas') {
+          let patient = await prisma.patient.findFirst({ where: { contactPhone: phone } });
+          if (!patient) {
+            toolResponseData = { success: false, message: 'No se encontraron pacientes para este número.' };
+          } else {
+            const appointments = await prisma.appointment.findMany({
+              where: { patientId: patient.id, status: { not: 'CANCELLED' } },
+              orderBy: { dateTime: 'asc' }
+            });
+            if (appointments.length === 0) {
+              toolResponseData = { success: true, citas: [], message: 'El paciente no tiene citas activas.' };
+            } else {
+              toolResponseData = {
+                success: true,
+                citas: appointments.map((a: any) => ({
+                  id: a.id,
+                  fechaHora: a.dateTime.toISOString(),
+                  motivo: a.reason
+                }))
+              };
+            }
+          }
+        }
+        else if (call.name === 'cancelar_cita') {
+          const { appointmentId } = call.args;
+          try {
+            await prisma.appointment.update({
+              where: { id: appointmentId },
+              data: { status: 'CANCELLED' }
+            });
+            toolResponseData = { success: true, message: 'Cita cancelada correctamente en el sistema.' };
+          } catch (e) {
+            toolResponseData = { success: false, message: 'Error cancelando la cita o ID inválido.' };
+          }
+        }
+        else if (call.name === 'reprogramar_cita') {
+          const { appointmentId, fecha, hora } = call.args;
+          const dateTimeString = `${fecha}T${hora}:00.000Z`;
+          const appointmentDate = new Date(dateTimeString);
+          try {
+            await prisma.appointment.update({
+              where: { id: appointmentId },
+              data: { dateTime: appointmentDate }
+            });
+            toolResponseData = { success: true, message: `Cita reprogramada al ${fecha} a las ${hora} correctamente.` };
+          } catch (e) {
+            toolResponseData = { success: false, message: 'Error reprogramando la cita o ID inválido.' };
           }
         }
         
