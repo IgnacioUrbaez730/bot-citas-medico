@@ -89,7 +89,7 @@ export class GeminiProvider {
 
       // 3. Ejecutar Gemini
       const response = await this.ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-1.5-flash',
         contents: contents,
         config: {
           systemInstruction: systemInstruction,
@@ -183,7 +183,7 @@ export class GeminiProvider {
         const finalContents = [...contents, response.candidates?.[0]?.content, toolResponseContent].filter(Boolean);
         
         const finalResponse = await this.ai.models.generateContent({
-          model: 'gemini-3.6-flash',
+          model: 'gemini-1.5-flash',
           contents: finalContents,
           config: {
             systemInstruction: systemInstruction,
