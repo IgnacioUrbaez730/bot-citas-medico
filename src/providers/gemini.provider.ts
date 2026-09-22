@@ -18,6 +18,26 @@ export class GeminiProvider {
   /**
    * Genera una respuesta inteligente basada en el historial de chat y soporta Function Calling.
    */
+  // Método de blindaje: Reintento automático si Google nos da error 429 (Cuota excedida)
+  private async generateContentWithRetry(options: any, maxRetries: number = 3): Promise<any> {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await this.ai.models.generateContent(options);
+      } catch (error: any) {
+        const errorMsg = error.message || '';
+        const isRateLimit = errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota');
+        
+        if (isRateLimit && i < maxRetries - 1) {
+          const waitTime = (i + 1) * 12000; // 12 segundos, luego 24 segundos
+          console.warn(`[GeminiProvider] ⚠️ Límite de cuota (429). Esperando ${waitTime/1000}s para reintentar... (Intento ${i+1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else {
+          throw error; // Si no es 429 o ya no quedan reintentos, lanzamos el error
+        }
+      }
+    }
+  }
+
   async generateResponse(
     history: any[],
     systemInstruction: string,
@@ -87,8 +107,8 @@ export class GeminiProvider {
         contents.push({ role: 'user', parts: [{ text: '[El paciente está esperando respuesta]' }] });
       }
 
-      // 3. Ejecutar Gemini
-      const response = await this.ai.models.generateContent({
+      // 3. Ejecutar Gemini (Con Blindaje Anti-429)
+      const response = await this.generateContentWithRetry({
         model: 'gemini-3.5-flash',
         contents: contents,
         config: {
@@ -182,7 +202,7 @@ export class GeminiProvider {
         
         const finalContents = [...contents, response.candidates?.[0]?.content, toolResponseContent].filter(Boolean);
         
-        const finalResponse = await this.ai.models.generateContent({
+        const finalResponse = await this.generateContentWithRetry({
           model: 'gemini-3.5-flash',
           contents: finalContents,
           config: {
