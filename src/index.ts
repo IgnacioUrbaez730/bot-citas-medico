@@ -15,6 +15,24 @@ app.use(express.json());
 
 app.use('/api/webhook/whatsapp', whatsappRoutes);
 
+// ENDPOINT PARA LA CONFIGURACIÓN CON IA (FLUTTER)
+app.post('/api/doctor/extract-config', async (req, res) => {
+  const { text } = req.body;
+  if (!text) {
+    return res.status(400).json({ error: 'Falta el texto' });
+  }
+  
+  try {
+    const { GeminiProvider } = require('./providers/gemini.provider');
+    const gemini = new GeminiProvider();
+    const config = await gemini.extractConfig(text);
+    res.json(config);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error procesando texto' });
+  }
+});
+
 // ENDPOINT PARA LA APP DE FLUTTER
 app.post('/api/doctor/send', async (req, res) => {
   const { phone, text } = req.body;

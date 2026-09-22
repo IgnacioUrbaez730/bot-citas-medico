@@ -220,5 +220,38 @@ export class GeminiProvider {
       console.error('[GeminiProvider] Error procesando con IA:', error);
       return `Disculpa, mi cerebro virtual está en mantenimiento. Error interno: ${error.message || 'Desconocido'}`;
     }
+    // MÃ©todo para extraer configuraciÃ³n mÃ©dica desde texto libre (Frontend)
+  async extractConfig(text: string): Promise<any> {
+    try {
+      const prompt = `Analiza el siguiente texto dictado por un mÃ©dico y extrae la configuraciÃ³n de su clÃ­nica.
+Devuelve EXCLUSIVAMENTE un JSON con esta estructura exacta, sin markdown (\`\`\`json), sin texto adicional:
+{
+  "name": "Nombre completo con tÃ­tulo (ej. Dra. Belkis Agreda)",
+  "specialty": "Especialidad (ej. Pediatra)",
+  "license": "NÃºmero de licencia o colegio, si lo dice. Si no, string vacÃ­o.",
+  "clinicName": "Nombre del consultorio o clÃ­nica",
+  "address": "DirecciÃ³n, si la dice. Si no, string vacÃ­o.",
+  "slotDuration": "NÃºmero entero con la duraciÃ³n de la consulta en MINUTOS (ej. 30 o 45). Si no lo dice, 30",
+  "scheduleText": "Un resumen claro de su horario de atenciÃ³n. Ej: 'Lunes a Viernes de 9am a 4pm'."
+}
+
+Texto del mÃ©dico: "${text}"`;
+
+      const response = await this.generateContentWithRetry({
+        model: 'gemini-3.5-flash',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+        },
+      });
+
+      if (!response.text) throw new Error("Respuesta vacÃ­a de Gemini");
+      return JSON.parse(response.text);
+    } catch (error) {
+      console.error('[GeminiProvider] Error en extractConfig:', error);
+      throw error;
+    }
   }
+}
 }
