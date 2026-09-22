@@ -46,20 +46,6 @@ export class WhatsAppService {
 
     console.log(`[Service] Procesando mensaje de ${phone}. Texto: "${userText}"`);
 
-    // INSTRUCCIONES MAESTRAS (EL ALMA DEL BOT)
-    const systemPrompt = `
-      Eres el asistente virtual empático de la clínica de la Doctora. 
-      Tu objetivo es leer el mensaje del paciente y responder como un humano profesional de la salud, no como un robot rígido.
-
-      REGLAS DE TRIAJE (MUY IMPORTANTE):
-      1. Si el paciente menciona síntomas de EMERGENCIA (fiebre alta, dificultad para respirar, dolor insoportable, sangrado, convulsiones, etc.), DEBES detener cualquier intento de agendar. Dile que la doctora no puede atender por esta vía en este momento, y sugiérele con urgencia que se dirija a la clínica más cercana o llame a emergencias.
-      2. Si es una consulta normal, salúdalo (pregúntale su nombre si no se ha presentado) y averigua el motivo de la consulta para poder ayudarle a agendar una cita.
-      3. Sé breve, muy educado y usa emojis médicos ocasionalmente (🏥🩺). 
-      4. Si el paciente te dice "Buenos días", responde naturalmente el saludo antes de ir al grano.
-      
-      IMPORTANTE: Nunca inventes horarios ni des consejos médicos, solo agenda.
-    `;
-
     // 1. Buffer para acumular mensajes (Modo Espera)
     const globalAny: any = global;
     if (!globalAny.messageBuffer) globalAny.messageBuffer = {};
@@ -73,15 +59,43 @@ export class WhatsAppService {
       clearTimeout(globalAny.messageBuffer[phone].timer);
     }
 
-    // 2. Iniciamos el cronÃ³metro de ESPERA (30 segundos para probar, luego lo subimos a 5 min)
+    // 2. Iniciamos el cronómetro de ESPERA (30 segundos)
     console.log(`[Service] Modo espera activado para ${phone}. Esperando 30 segundos...`);
     
     globalAny.messageBuffer[phone].timer = setTimeout(async () => {
       console.log(`[Service] Tiempo de espera agotado para ${phone}. Procesando con IA...`);
-      const fullText = globalAny.messageBuffer[phone].text.join("\\n");
       
       try {
-        const aiResponse = await geminiProvider.generateResponse(fullText, systemPrompt);
+        // A) Buscar perfil de la doctora en BD (para el prompt)
+        const doctor = await prisma.doctor.findUnique({
+          where: { id: '00000000-0000-0000-0000-000000000000' } // ID por defecto
+        });
+
+        // B) Buscar las últimas interacciones del historial en BD para contexto
+        const dbHistory = await prisma.message.findMany({
+          where: { phone },
+          orderBy: { createdAt: 'desc' },
+          take: 15 // Últimos 15 mensajes
+        });
+        dbHistory.reverse(); // Orden cronológico para la IA
+
+        // C) Instrucciones Maestras Mejoradas (Inyectamos la info real del Doctor)
+        const systemPrompt = `
+Eres el asistente virtual empático de la clínica de la Doctora ${doctor?.name || 'Principal'}. 
+Especialidad: ${doctor?.specialty || 'General'}.
+Horario de Atención (LEER ATENTAMENTE): "${doctor?.scheduleText || 'No especificado'}".
+Duración por cita: ${doctor?.slotDuration || 30} minutos.
+
+Tu objetivo es leer el historial del paciente y responder como un humano profesional de la salud, no como un robot rígido.
+
+REGLAS DE TRIAJE (MUY IMPORTANTE):
+1. Si el paciente menciona síntomas de EMERGENCIA (fiebre alta, dificultad respiratoria, etc.), DEBES detener cualquier intento de agendar y derivarlo a emergencias.
+2. Si el paciente te dice su nombre, DEBES usar la herramienta (función) 'guardar_nombre_paciente' inmediatamente.
+3. Sé breve, muy educado y usa emojis médicos ocasionalmente (🩺). 
+4. NUNCA inventes horarios. Limítate a lo que dice el Horario de Atención.
+`;
+
+        const aiResponse = await geminiProvider.generateResponse(dbHistory, systemPrompt, phone, doctor);
         
         // Guardar la respuesta de la IA en la base de datos
         await prisma.message.create({
@@ -98,7 +112,7 @@ export class WhatsAppService {
         console.error(`[Service] Error al generar respuesta:`, error);
       }
 
-      // Limpiar el buffer para este nÃºmero
+      // Limpiar el buffer para este número
       delete globalAny.messageBuffer[phone];
     }, 30000);
 
