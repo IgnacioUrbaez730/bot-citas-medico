@@ -43,11 +43,28 @@ export class GeminiProvider {
         }
       ];
 
-      // 2. Construir la historia en el formato requerido por @google/genai
-      const contents = history.map((msg) => ({
-        role: msg.sender === 'patient' ? 'user' : 'model',
-        parts: [{ text: msg.text }],
-      }));
+      // 2. Construir la historia consolidando roles consecutivos y manejando mensajes vacíos (audios)
+      const contents: any[] = [];
+      
+      for (const msg of history) {
+        const role = msg.sender === 'patient' ? 'user' : 'model';
+        // Si el texto está vacío (pasa cuando envían audios/imágenes), le ponemos un placeholder
+        const text = msg.text?.trim() ? msg.text.trim() : '[El paciente envió un audio o multimedia que la IA aún no puede procesar]';
+
+        if (contents.length > 0 && contents[contents.length - 1].role === role) {
+          // Si es el mismo rol consecutivo, concatenamos el texto (Gemini no soporta user -> user)
+          contents[contents.length - 1].parts[0].text += `\n${text}`;
+        } else {
+          // Nuevo rol, agregamos el bloque
+          contents.push({ role, parts: [{ text }] });
+        }
+      }
+
+      // Si por alguna extraña razón el historial termina en 'model', Gemini lanzará error 400.
+      // Como esto se ejecuta tras un mensaje del paciente, SIEMPRE debería terminar en 'user'.
+      if (contents.length > 0 && contents[contents.length - 1].role === 'model') {
+        contents.push({ role: 'user', parts: [{ text: '[El paciente está esperando respuesta]' }] });
+      }
 
       // 3. Ejecutar Gemini
       const response = await this.ai.models.generateContent({
