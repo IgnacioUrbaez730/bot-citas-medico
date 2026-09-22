@@ -27,6 +27,8 @@ model Doctor {
 
 model Contact {
   phone      String       @id
+  name       String?      // Nombre legal del titular (opcional/manual)
+  nationalId String?      // Cédula/DNI del titular del WhatsApp
   alias      String?      // Nombre asignado por el doctor manualmente
   aiName     String?      // Nombre extraído automáticamente por la IA
   createdAt  DateTime     @default(now())
@@ -42,7 +44,13 @@ model Patient {
   contactPhone String        // Referencia al dueño del teléfono (representante)
   name         String?       // Nombre real del paciente
   nationalId   String?       // Cédula del paciente
-  birthDate    DateTime?
+  birthDate    DateTime?     // Fecha de nacimiento
+  gender       String?       // Sexo biológico (ej. M, F)
+  bloodType    String?       // Grupo Sanguíneo (ej. O+, A-)
+  email        String?       // Correo electrónico (para enviar PDFs)
+  occupation   String?       // Ocupación / Profesión
+  address      String?       // Dirección / Ciudad
+  emergencyContact String?   // Nombre y teléfono de emergencia
   createdAt    DateTime      @default(now())
   
   appointments Appointment[]

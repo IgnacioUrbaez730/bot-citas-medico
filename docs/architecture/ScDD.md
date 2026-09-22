@@ -28,3 +28,9 @@ Define la lógica pura del negocio de la salud.
 3. La IA captura el nombre del **Paciente** y el motivo de consulta.
 4. La IA (vía Function Calling) busca espacios disponibles y propone fechas.
 5. Tras confirmar, se crea una **Cita** vinculada al **Paciente**, quien a su vez está vinculado al **Contacto**.
+
+## 5. Módulo del Panel Médico (Flutter UI & Backend)
+El panel de control permite la intervención manual y gestión integral:
+- **Gestión de Citas Manuales (`/api/doctor/book-manual`)**: Permite agendar citas a pacientes no provenientes de la IA. El sistema normaliza el teléfono, asegura el registro en `Contact` y `Patient`, inserta la cita, y despacha un mensaje de confirmación por WhatsApp automáticamente.
+- **Gestión de Agenda (`/api/doctor/update-appointment`)**: Permite cancelar o reprogramar citas existentes. El sistema actualiza el estado o la fecha en Supabase y notifica proactivamente al paciente vía Meta Cloud API los cambios en su agenda.
+- **Pantalla de Calendario (Flutter)**: Interfaz visual con `table_calendar` que consume directamente la tabla `Appointment` de Supabase para visualizar citas filtrando cancelaciones, y conecta a los endpoints del servidor para editar datos.

@@ -62,7 +62,17 @@ model Patient {
    - Usa `WhatsAppProvider.sendTextMessage` para enviar el payload a Meta Graph API.
 3. **Database (Supabase):** El frontend o backend guardan el mensaje en la tabla `Message` para persistencia y lectura en tiempo real mediante WebSockets (Supabase Streams).
 
-## 3. Flujo de Function Calling (Próxima Implementación)
+## 3. Flujo de Gestión Manual de Agenda
+1. **Creación (Flutter -> Node):** La pantalla de `CalendarScreen` envía `POST` a `/api/doctor/book-manual`.
+   - Node normaliza el teléfono.
+   - Crea/busca el `Contact` y `Patient`.
+   - Inserta la cita en `Appointment`.
+   - Notifica por WhatsApp usando `WhatsAppProvider`.
+2. **Edición/Cancelación:** Flutter envía `POST` a `/api/doctor/update-appointment`.
+   - Actualiza el estado (`CANCELLED`) o fecha en `Appointment`.
+   - Informa pasivamente a Flutter (que hace fetch nuevamente) y activamente al paciente vía WhatsApp.
+
+## 4. Flujo de Function Calling (Próxima Implementación)
 - Se habilitará la propiedad `tools` en el `GeminiProvider`.
 - Si Gemini deduce la intención de agendar, retorna un llamado a función.
 - El backend procesa el llamado, inserta en `Appointment` y le devuelve la confirmación a Gemini para que construya la respuesta humana final.
