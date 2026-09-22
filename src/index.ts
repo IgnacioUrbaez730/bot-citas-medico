@@ -56,6 +56,14 @@ app.post('/api/doctor/book-manual', async (req, res) => {
     return res.status(400).json({ error: 'Faltan datos requeridos (phone, patientName, dateTime)' });
   }
 
+  // Normalizar el teléfono para Venezuela (Ej: 0412 -> 58412)
+  let formattedPhone = phone.replace(/\D/g, '');
+  if (formattedPhone.startsWith('0')) {
+    formattedPhone = '58' + formattedPhone.substring(1);
+  } else if (!formattedPhone.startsWith('58') && formattedPhone.length === 10) {
+    formattedPhone = '58' + formattedPhone;
+  }
+
   try {
     const { PrismaClient } = require('@prisma/client');
     const prisma = new PrismaClient();
@@ -65,21 +73,21 @@ app.post('/api/doctor/book-manual', async (req, res) => {
     if (!doctor) throw new Error('No hay un doctor configurado');
 
     // 1. Asegurar que el Contacto existe
-    let contact = await prisma.contact.findUnique({ where: { phone } });
+    let contact = await prisma.contact.findUnique({ where: { phone: formattedPhone } });
     if (!contact) {
-      contact = await prisma.contact.create({ data: { phone, alias: patientName } });
+      contact = await prisma.contact.create({ data: { phone: formattedPhone, alias: patientName } });
     }
 
     // 2. Asegurar que el Paciente existe
     let patient = await prisma.patient.findFirst({
-      where: { contactPhone: phone, name: patientName }
+      where: { contactPhone: formattedPhone, name: patientName }
     });
     
     if (!patient) {
       patient = await prisma.patient.create({
         data: {
           doctorId: doctor.id,
-          contactPhone: phone,
+          contactPhone: formattedPhone,
           name: patientName,
         }
       });
@@ -113,7 +121,7 @@ app.post('/api/doctor/book-manual', async (req, res) => {
     
     const { WhatsAppProvider } = require('./providers/whatsapp.provider');
     const whatsappProvider = new WhatsAppProvider();
-    await whatsappProvider.sendTextMessage(phone, msg);
+    await whatsappProvider.sendTextMessage(formattedPhone, msg);
 
     res.json({ success: true, appointment });
   } catch (error: any) {
