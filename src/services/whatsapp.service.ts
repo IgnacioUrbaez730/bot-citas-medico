@@ -14,6 +14,13 @@ export class WhatsAppService {
     const phone = message.from;
     const userText = message.text?.body || "";
     
+    // ScDD: Asegurarnos de que el Contacto exista en la BD antes de cualquier otra cosa
+    await prisma.contact.upsert({
+      where: { phone },
+      update: {},
+      create: { phone }
+    });
+
     let session = await prisma.botSession.findUnique({
       where: { phone }
     });
