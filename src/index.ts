@@ -49,6 +49,79 @@ app.post('/api/doctor/send', async (req, res) => {
   }
 });
 
+// ENDPOINT PARA AGENDAR MANUALMENTE DESDE FLUTTER
+app.post('/api/doctor/book-manual', async (req, res) => {
+  const { phone, patientName, dateTime, reason } = req.body;
+  if (!phone || !patientName || !dateTime) {
+    return res.status(400).json({ error: 'Faltan datos requeridos (phone, patientName, dateTime)' });
+  }
+
+  try {
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    
+    // Obtener el doctor (asumiendo que hay uno solo por ahora)
+    const doctor = await prisma.doctor.findFirst();
+    if (!doctor) throw new Error('No hay un doctor configurado');
+
+    // 1. Asegurar que el Contacto existe
+    let contact = await prisma.contact.findUnique({ where: { phone } });
+    if (!contact) {
+      contact = await prisma.contact.create({ data: { phone, alias: patientName } });
+    }
+
+    // 2. Asegurar que el Paciente existe
+    let patient = await prisma.patient.findFirst({
+      where: { contactPhone: phone, name: patientName }
+    });
+    
+    if (!patient) {
+      patient = await prisma.patient.create({
+        data: {
+          doctorId: doctor.id,
+          contactPhone: phone,
+          name: patientName,
+        }
+      });
+    }
+
+    // 3. Crear la cita
+    const appointmentDate = new Date(dateTime);
+    const appointment = await prisma.appointment.create({
+      data: {
+        doctorId: doctor.id,
+        patientId: patient.id,
+        dateTime: appointmentDate,
+        reason: reason || 'Consulta generada manualmente',
+        status: 'CONFIRMED'
+      }
+    });
+
+    // 4. Enviar WhatsApp de confirmacion
+    const options: Intl.DateTimeFormatOptions = { 
+      timeZone: 'America/Caracas', 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    };
+    const dateStr = appointmentDate.toLocaleString('es-VE', options);
+    
+    const msg = `✅ *Cita Confirmada*\nHola, el ${doctor.name} te ha agendado una cita para *\n${patientName}*\n\n📅 Cuándo: ${dateStr}\n\nTe esperamos.`;
+    
+    const { WhatsAppProvider } = require('./providers/whatsapp.provider');
+    const whatsappProvider = new WhatsAppProvider();
+    await whatsappProvider.sendTextMessage(phone, msg);
+
+    res.json({ success: true, appointment });
+  } catch (error: any) {
+    console.error('[Book Manual Error]:', error);
+    res.status(500).json({ error: 'Error interno guardando la cita manual: ' + error.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('Servidor de Citas IA activo ??');
 });
