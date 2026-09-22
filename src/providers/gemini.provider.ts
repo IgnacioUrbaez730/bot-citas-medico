@@ -25,7 +25,7 @@ export class GeminiProvider {
         return await this.ai.models.generateContent(options);
       } catch (error: any) {
         const errorMsg = error.message || '';
-        const isRateLimit = errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota');
+        const isRateLimit = errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota') || errorMsg.includes('503') || errorMsg.includes('UNAVAILABLE');
         
         if (isRateLimit && i < maxRetries - 1) {
           const waitTime = (i + 1) * 12000; // 12 segundos, luego 24 segundos
