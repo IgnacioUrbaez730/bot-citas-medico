@@ -43,15 +43,20 @@ Para usar este mismo código para otro cliente de **Techscript** (ej: Una Pizzer
 3. En configuración de la API, copia el **Identificador del número de teléfono** y genera un **Token de acceso**.
 4. Pega esos valores en tu archivo `.env` (`WHATSAPP_PHONE_ID` y `WHATSAPP_API_TOKEN`).
 
-### 3. Levantar el Túnel y el Servidor
+### 3. Levantar el Túnel y el Servidor (Desarrollo Local)
 * Abre una terminal y corre: `npm run tunnel` (Usa el puerto 3000 y tiene antidesmayo).
 * Abre otra terminal y corre: `npm run dev`.
+* *(Ver [03_render_deployment.md](./docs/specs/03_render_deployment.md) para instrucciones de despliegue en la nube 24/7).*
 
 ### 4. Conectar el Webhook en Meta
 1. Ve a Meta > WhatsApp > Configuración > Webhooks.
-2. Dale a **Editar**. Pega la URL del túnel agregando `/api/webhook/whatsapp`.
+2. Dale a **Editar**. Pega la URL del túnel (o la URL de Render) agregando `/api/webhook/whatsapp`.
 3. Pega el Token de Verificación (ej: `citas_token_secreto`) que está en tu `.env`.
 4. Dale a "Administrar campos del webhook" y suscríbete a `messages`.
+
+### 5. Configurar el Panel Médico (Flutter)
+Para poder supervisar las conversaciones y realizar intervenciones manuales (apagar la IA), se debe utilizar la aplicación cliente en Flutter.
+* *(Ver [02_flutter_medical_panel.md](./docs/specs/02_flutter_medical_panel.md) para conocer la arquitectura de WebSockets y toma de control manual).*
 
 ### 5. Modificar el Cerebro (El Prompt de Gemini)
 * Ve al servicio donde se llama a Gemini.

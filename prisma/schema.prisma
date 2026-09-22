@@ -3,9 +3,97 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+model Doctor {
+  id             String        @id @default(uuid())
+  auth_id        String        @unique
+  name           String
+  specialty      String?
+  medicalLicense String?
+  clinicName     String?
+  clinicAddress  String?
+  workStartTime  String        @default("08:00")
+  workEndTime    String        @default("17:00")
+  slotDuration   Int           @default(30)
+  createdAt      DateTime      @default(now())
+  appointments   Appointment[]
+  patients       Patient[]
+}
+
+model Contact {
+  phone      String       @id
+  alias      String?      // Nombre asignado por el doctor manualmente
+  aiName     String?      // Nombre extraído automáticamente por la IA
+  createdAt  DateTime     @default(now())
+  
+  patients   Patient[]
+  messages   Message[]
+  sessions   BotSession[]
+}
+
+model Patient {
+  id           String        @id @default(uuid())
+  doctorId     String
+  contactPhone String        // Referencia al dueño del teléfono (representante)
+  name         String?       // Nombre real del paciente
+  nationalId   String?       // Cédula del paciente
+  birthDate    DateTime?
+  createdAt    DateTime      @default(now())
+  
+  appointments Appointment[]
+  doctor       Doctor        @relation(fields: [doctorId], references: [id])
+  contact      Contact?      @relation(fields: [contactPhone], references: [phone]) // Opcional temporalmente para migrar
+}
+
+model Appointment {
+  id           String            @id @default(uuid())
+  doctorId     String
+  patientId    String
+  dateTime     DateTime
+  status       AppointmentStatus @default(PENDING)
+  reason       String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  doctor       Doctor            @relation(fields: [doctorId], references: [id])
+  patient      Patient           @relation(fields: [patientId], references: [id])
+  clinicalNote ClinicalNote?
+
+  @@unique([doctorId, dateTime])
+}
+
+model ClinicalNote {
+  id              String      @id @default(uuid())
+  appointmentId   String      @unique
+  audioUrl        String?
+  soapData        Json?
+  prescriptionUrl String?
+  isSigned        Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  appointment     Appointment @relation(fields: [appointmentId], references: [id])
+}
+
+model BotSession {
+  phone        String   @id
+  doctorId     String
+  step         String   @default("WELCOME")
+  temporalData Json?
+  updatedAt    DateTime @updatedAt
+
+  contact      Contact? @relation(fields: [phone], references: [phone]) // Opcional para migrar
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  phone     String
+  sender    String
+  text      String
+  createdAt DateTime @default(now())
+
+  contact   Contact? @relation(fields: [phone], references: [phone]) // Opcional para migrar
 }
 
 enum AppointmentStatus {
@@ -15,75 +103,3 @@ enum AppointmentStatus {
   COMPLETED
   NO_SHOW
 }
-
-model Doctor {
-  id               String        @id @default(uuid())
-  auth_id          String        @unique
-  name             String
-  specialty        String?
-  medicalLicense   String?
-  clinicName       String?
-  clinicAddress    String?
-  workStartTime    String        @default("08:00")
-  workEndTime      String        @default("17:00")
-  slotDuration     Int           @default(30)
-  createdAt        DateTime      @default(now())
-  appointments     Appointment[]
-  patients         Patient[]
-}
-
-model Patient {
-  id               String        @id @default(uuid())
-  doctorId         String
-  phone            String
-  name             String?
-  nationalId       String?
-  birthDate        DateTime?
-  createdAt        DateTime      @default(now())
-  doctor           Doctor        @relation(fields: [doctorId], references: [id])
-  appointments     Appointment[]
-  @@unique([phone, doctorId])
-}
-
-model Appointment {
-  id               String            @id @default(uuid())
-  doctorId         String
-  patientId        String
-  dateTime         DateTime
-  status           AppointmentStatus @default(PENDING)
-  reason           String?
-  doctor           Doctor            @relation(fields: [doctorId], references: [id])
-  patient          Patient           @relation(fields: [patientId], references: [id])
-  clinicalNote     ClinicalNote?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  @@unique([doctorId, dateTime])
-}
-
-model ClinicalNote {
-  id               String        @id @default(uuid())
-  appointmentId    String        @unique
-  audioUrl         String?
-  soapData         Json?
-  prescriptionUrl  String?
-  isSigned         Boolean       @default(false)
-  createdAt        DateTime      @default(now())
-  appointment      Appointment   @relation(fields: [appointmentId], references: [id])
-}
-
-model BotSession {
-  phone            String        @id
-  doctorId         String
-  step             String        @default("WELCOME")
-  temporalData     Json?
-  updatedAt        DateTime      @updatedAt
-}
-
-model Message {
-  id               String        @id @default(uuid())
-  phone            String
-  sender           String        // "patient", "bot", o "doctor"
-  text             String
-  createdAt        DateTime      @default(now())
-}
-
