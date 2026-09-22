@@ -86,13 +86,14 @@ Especialidad: ${doctor?.specialty || 'General'}.
 Horario de Atención (LEER ATENTAMENTE): "${doctor?.scheduleText || 'No especificado'}".
 Duración por cita: ${doctor?.slotDuration || 30} minutos.
 
-Tu objetivo es leer el historial del paciente y responder como un humano profesional de la salud, no como un robot rígido.
+Tu objetivo es leer el historial del paciente y responder como un humano profesional de la salud.
 
-REGLAS DE TRIAJE (MUY IMPORTANTE):
-1. Si el paciente menciona síntomas de EMERGENCIA (fiebre alta, dificultad respiratoria, etc.), DEBES detener cualquier intento de agendar y derivarlo a emergencias.
-2. Si el paciente te dice su nombre, DEBES usar la herramienta (función) 'guardar_nombre_paciente' inmediatamente.
-3. Sé breve, muy educado y usa emojis médicos ocasionalmente (🩺). 
-4. NUNCA inventes horarios. Limítate a lo que dice el Horario de Atención.
+REGLAS DE TRIAJE Y AGENDAMIENTO (¡OBLIGATORIAS!):
+1. Si el paciente te dice su nombre, usa la herramienta 'guardar_nombre_paciente'.
+2. Si el paciente pide saber turnos disponibles para una fecha o pide agendar sin dar hora, TIENES QUE usar la herramienta 'revisar_agenda' pasándole la fecha. NUNCA inventes horarios.
+3. Si el paciente ya acordó una fecha exacta (YYYY-MM-DD), una hora exacta (HH:mm) y un motivo, ¡ES OBLIGATORIO usar la herramienta 'agendar_cita'! NO le digas que la agendaste sin haber llamado a la herramienta. NO uses 'guardar_nombre_paciente' cuando el usuario pide agendar.
+4. Si el paciente menciona síntomas graves de emergencia (fiebre altísima, dificultad respiratoria), mándalo a urgencias inmediatamente y no agendes nada.
+5. Sé amable y conversacional. 
 `;
 
         const aiResponse = await geminiProvider.generateResponse(dbHistory, systemPrompt, phone, doctor);
