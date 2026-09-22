@@ -33,12 +33,33 @@ export class GeminiProvider {
           parameters: {
             type: Type.OBJECT,
             properties: {
-              nombre: {
-                type: Type.STRING,
-                description: 'El nombre del paciente',
-              },
+              nombre: { type: Type.STRING, description: 'El nombre del paciente' },
             },
             required: ['nombre'],
+          },
+        },
+        {
+          name: 'revisar_agenda',
+          description: 'Busca los horarios ocupados de un día específico para saber qué turnos están disponibles.',
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              fecha: { type: Type.STRING, description: 'Fecha en formato YYYY-MM-DD' },
+            },
+            required: ['fecha'],
+          },
+        },
+        {
+          name: 'agendar_cita',
+          description: 'Guarda oficialmente una cita médica en la base de datos.',
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              fecha: { type: Type.STRING, description: 'Fecha de la cita en formato YYYY-MM-DD' },
+              hora: { type: Type.STRING, description: 'Hora de la cita en formato HH:mm (24h)' },
+              motivo: { type: Type.STRING, description: 'Breve motivo de la consulta' }
+            },
+            required: ['fecha', 'hora', 'motivo'],
           },
         }
       ];
@@ -82,42 +103,96 @@ export class GeminiProvider {
         const call = response.functionCalls[0];
         console.log(`[GeminiProvider] 🤖 IA solicitó ejecutar: ${call.name}`, call.args);
         
+        const { PrismaClient } = require('@prisma/client');
+        const prisma = new PrismaClient();
+        let toolResponseData: any = {};
+
         if (call.name === 'guardar_nombre_paciente') {
-          const { PrismaClient } = require('@prisma/client');
-          const prisma = new PrismaClient();
           const nombre = call.args.nombre;
-          
-          await prisma.contact.update({
-            where: { phone },
-            data: { aiName: nombre }
-          });
-          console.log(`[GeminiProvider] ✅ Nombre "${nombre}" guardado en la BD para ${phone}`);
-          
-          // Debemos decirle a la IA que ya lo hicimos para que pueda responder al usuario
-          const toolResponseContent = {
-            role: 'user',
-            parts: [{
-              functionResponse: {
-                name: 'guardar_nombre_paciente',
-                response: { success: true, message: `Nombre ${nombre} guardado exitosamente.` }
-              }
-            }]
-          };
-          
-          const finalContents = [...contents, response.candidates?.[0]?.content, toolResponseContent].filter(Boolean);
-          
-          const finalResponse = await this.ai.models.generateContent({
-            model: 'gemini-3.6-flash',
-            contents: finalContents,
-            config: {
-              systemInstruction: systemInstruction,
-              temperature: 0.2,
-              tools: [{ functionDeclarations }],
-            }
-          });
-          
-          return finalResponse.text || "¡Listo! Ya guardé tu nombre. ¿En qué más te puedo ayudar?";
+          await prisma.contact.update({ where: { phone }, data: { aiName: nombre } });
+          console.log(`[GeminiProvider] ✅ Nombre "${nombre}" guardado en BD para ${phone}`);
+          toolResponseData = { success: true, message: `Nombre ${nombre} guardado exitosamente.` };
         }
+        
+        else if (call.name === 'revisar_agenda') {
+          const fecha = call.args.fecha; // YYYY-MM-DD
+          const startOfDay = new Date(`${fecha}T00:00:00.000Z`);
+          const endOfDay = new Date(`${fecha}T23:59:59.999Z`);
+          
+          const appointments = await prisma.appointment.findMany({
+            where: {
+              doctorId: doctorConfig.id,
+              dateTime: { gte: startOfDay, lte: endOfDay },
+              status: { not: 'CANCELLED' }
+            },
+            select: { dateTime: true }
+          });
+          
+          const ocupadas = appointments.map((a: any) => a.dateTime.toISOString());
+          console.log(`[GeminiProvider] 📅 Consultando agenda para ${fecha}. Citas ocupadas: ${ocupadas.length}`);
+          
+          toolResponseData = { 
+            fechaConsulta: fecha,
+            citasOcupadasISO: ocupadas,
+            mensaje: 'Compara estas citas ocupadas con mi horario de atención y ofrécele al paciente opciones de horas disponibles que no choquen con las ocupadas. Calcula bien los minutos (Ej: si la cita dura 30 mins, 08:00 a 08:30).'
+          };
+        }
+
+        else if (call.name === 'agendar_cita') {
+          const { fecha, hora, motivo } = call.args;
+          const dateTimeString = `${fecha}T${hora}:00.000Z`;
+          const appointmentDate = new Date(dateTimeString);
+          
+          try {
+            // Buscar o crear Paciente vinculado al contacto
+            let patient = await prisma.patient.findFirst({ where: { contactPhone: phone } });
+            if (!patient) {
+              const contact = await prisma.contact.findUnique({ where: { phone }});
+              patient = await prisma.patient.create({
+                data: { doctorId: doctorConfig.id, contactPhone: phone, name: contact?.name || contact?.aiName || 'Paciente Nuevo' }
+              });
+            }
+
+            const newAppt = await prisma.appointment.create({
+              data: {
+                doctorId: doctorConfig.id,
+                patientId: patient.id,
+                dateTime: appointmentDate,
+                reason: motivo || 'Consulta general'
+              }
+            });
+            console.log(`[GeminiProvider] ✅ Cita agendada para ${phone} el ${dateTimeString}`);
+            toolResponseData = { success: true, message: `Cita agendada para el ${fecha} a las ${hora}. Id: ${newAppt.id}` };
+          } catch (err: any) {
+            console.error(`[GeminiProvider] ❌ Error agendando cita:`, err);
+            toolResponseData = { success: false, message: 'La hora seleccionada ya está ocupada o hubo un error en la base de datos. Pide al paciente que elija otra hora.' };
+          }
+        }
+        
+        // Responderle a Gemini el resultado de la función para que genere el texto final
+        const toolResponseContent = {
+          role: 'user',
+          parts: [{
+            functionResponse: {
+              name: call.name,
+              response: toolResponseData
+            }
+          }]
+        };
+        
+        const finalContents = [...contents, response.candidates?.[0]?.content, toolResponseContent].filter(Boolean);
+        
+        const finalResponse = await this.ai.models.generateContent({
+          model: 'gemini-3.6-flash',
+          contents: finalContents,
+          config: {
+            systemInstruction: systemInstruction,
+            temperature: 0.2,
+            tools: [{ functionDeclarations }],
+          }
+        });
+        
+        return finalResponse.text || "Operación realizada, ¿en qué más te puedo ayudar?";
       }
       
       return response.text || "Lo siento, tuve un problema procesando tu mensaje.";
