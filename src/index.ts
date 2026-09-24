@@ -264,7 +264,7 @@ app.post('/api/doctor/patients', async (req, res) => {
     emergencyContact
   } = req.body;
 
-  if (!phone || !name) {
+  if (!name) {
     return res.status(400).json({ error: 'El teléfono del titular y el nombre del paciente son obligatorios.' });
   }
 
