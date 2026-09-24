@@ -54,6 +54,7 @@ model Patient {
   createdAt    DateTime      @default(now())
   
   appointments Appointment[]
+  medicalBackground MedicalBackground?
   doctor       Doctor        @relation(fields: [doctorId], references: [id])
   contact      Contact?      @relation(fields: [contactPhone], references: [phone]) // Opcional temporalmente para migrar
 }
@@ -111,4 +112,20 @@ enum AppointmentStatus {
   CANCELLED
   COMPLETED
   NO_SHOW
+}
+
+
+model MedicalBackground {
+  id              String   @id @default(uuid())
+  patientId       String   @unique
+  allergies       String?  @default("Ninguna conocida")
+  personalHistory String?  // Patológicos personales
+  familyHistory   String?  // Patológicos familiares
+  surgicalHistory String?  // Quirúrgicos y traumatológicos
+  habits          String?  // Hábitos tóxicos
+  observations    String?  // Alertas (ej. marcapasos, alergias graves)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  patient         Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
 }
