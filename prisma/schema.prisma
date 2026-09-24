@@ -41,7 +41,7 @@ model Contact {
 model Patient {
   id           String        @id @default(uuid())
   doctorId     String
-  contactPhone String        // Referencia al dueño del teléfono (representante)
+  contactPhone String?       // Referencia al dueño del teléfono (representante)
   name         String?       // Nombre real del paciente
   nationalId   String?       // Cédula del paciente
   birthDate    DateTime?     // Fecha de nacimiento

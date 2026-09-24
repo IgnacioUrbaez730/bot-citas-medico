@@ -1,36 +1,48 @@
-# ScDD: Schema-Driven Development (Estructuras y Modelos)
+# ScDD: Screen-Driven Development (Navegación e Interfaces)
 **Proyecto:** ControlCitas IA
 
-## 1. Visión del Sistema
-El sistema es un puente automatizado entre un servicio de mensajería (WhatsApp) y un sistema de gestión clínica. Su propósito principal es liberar la carga administrativa del personal médico automatizando el triaje y el agendamiento mediante Inteligencia Artificial, manteniendo siempre la posibilidad de intervención humana.
+## 1. Topología de Pantallas (Flutter Web)
 
-## 2. Definición de Entidades Conceptuales
+### 1.1 AuthScreen
+- **Ruta:** `/`
+- **Componentes:** Card central con Login (Email/Password).
+- **Acción:** Llama a Supabase Auth. Si es exitoso, redirige a `/main`.
 
-### 2.1 Módulo de Comunicación (El CRM)
-Define cómo interactúa el sistema con el mundo exterior.
-- **Contacto (Contact):** Es la persona física dueña del número de WhatsApp. Puede interactuar con la IA. La aplicación del médico le puede asignar un alias (ej. "Ignacio (Papá de Diego)") para reconocerlo en el futuro.
-- **Sesión de Bot (BotSession):** El estado temporal de la conversación (ej. Triaje, Agendando, Silenciado).
-- **Mensaje (Message):** Unidad básica de comunicación (Texto, Audio, etc).
+### 1.2 MainLayout (Scaffold base)
+- **Ruta:** `/main`
+- **Componentes:** Drawer a la izquierda (o BottomNavBar en móviles).
+- **Sub-pantallas (Páginas hijas):**
+  - `DashboardScreen` (Métricas)
+  - `ChatScreen` (Mensajería)
+  - `CalendarScreen` (Agenda manual e IA)
+  - `PatientsScreen` (Directorio)
+  - `SettingsScreen` (Prompt e instrucciones del Bot)
 
-### 2.2 Módulo Clínico (El Consultorio)
-Define la lógica pura del negocio de la salud.
-- **Paciente (Patient):** Es la persona que recibe el servicio médico. Un Paciente siempre está vinculado a un Contacto, ya que los niños o personas mayores pueden no tener teléfono propio y son representados por el Contacto.
-- **Cita (Appointment):** El espacio de tiempo reservado para un Paciente con un Doctor.
-- **Historia / Nota (ClinicalNote):** El registro médico generado después de la cita.
+---
 
-## 3. Reglas Estrictas de Migración y Operación
-- **Dependencia de Contacto:** `Message`, `BotSession` y `Patient` tienen como llave foránea el teléfono (`phone`) hacia `Contact`. Por diseño estricto de base de datos relacional, **el Contacto debe existir antes de poder guardar un mensaje o iniciar una sesión**.
-- **Upsert en Webhook:** Para cumplir la regla anterior sin que los mensajes se pierdan, el backend Node.js (`whatsapp.service.ts`) realiza obligatoriamente un `upsert` en la tabla `Contact` en el milisegundo exacto en que entra el payload de Meta, garantizando que el `Contact` siempre exista antes de que se propague a Flutter o a la IA.
+## 2. Flujo Clínico (Directorio y Consultas)
 
-## 4. Flujo Conceptual Principal
-1. Un **Contacto** escribe al sistema.
-2. La IA evalúa la conversación y determina si es una emergencia (se cancela el flujo) o una consulta.
-3. La IA captura el nombre del **Paciente** y el motivo de consulta.
-4. La IA (vía Function Calling) busca espacios disponibles y propone fechas.
-5. Tras confirmar, se crea una **Cita** vinculada al **Paciente**, quien a su vez está vinculado al **Contacto**.
+### 2.1 PatientsScreen (Directorio)
+- **UI:** Grid/Lista de pacientes registrados.
+- **Acciones:**
+  - **Botón (+):** Abre `AddPatientScreen` para registro manual de walk-ins.
+  - **Tap en Tarjeta:** Abre `PatientProfileScreen` del paciente seleccionado.
 
-## 5. Módulo del Panel Médico (Flutter UI & Backend)
-El panel de control permite la intervención manual y gestión integral:
-- **Gestión de Citas Manuales (`/api/doctor/book-manual`)**: Permite agendar citas a pacientes no provenientes de la IA. El sistema normaliza el teléfono, asegura el registro en `Contact` y `Patient`, inserta la cita, y despacha un mensaje de confirmación por WhatsApp automáticamente.
-- **Gestión de Agenda (`/api/doctor/update-appointment`)**: Permite cancelar o reprogramar citas existentes. El sistema actualiza el estado o la fecha en Supabase y notifica proactivamente al paciente vía Meta Cloud API los cambios en su agenda.
-- **Pantalla de Calendario (Flutter)**: Interfaz visual con `table_calendar` que consume directamente la tabla `Appointment` de Supabase para visualizar citas filtrando cancelaciones, y conecta a los endpoints del servidor para editar datos.
+### 2.2 AddPatientScreen (Registro de Walk-in)
+- **UI:** Formulario de registro inicial.
+- **Lógica Especial:**
+  - El teléfono de WhatsApp es opcional.
+  - Contiene switch "¿Es menor de edad sin cédula?" para generar Cédula Escolar (1 + Año + CI Representante).
+
+### 2.3 PatientProfileScreen (Perfil y Antecedentes)
+- **UI:** TabBar con dos pestañas.
+  - **Datos Demográficos:** Nombre, Fecha de nacimiento, Contacto.
+  - **Antecedentes:** Alergias, Patológicos, Quirúrgicos, Hábito.
+- **Acción:** Botón flotante para iniciar nueva consulta (`MedicalRecordScreen`).
+
+### 2.4 MedicalRecordScreen (Historia Médica Diaria)
+- **UI:** 
+  - **Cabecera:** Muestra únicamente el Nombre del Paciente y la Fecha de la consulta.
+  - **Cuerpo:** Formulario tipo SOAP (Motivo, Evolución, Examen Físico, Diagnóstico, Plan).
+  - **Plan Separado:** Dos campos de texto separados para **Récipe** (Medicinas) e **Indicaciones**.
+- **Acción:** Guarda en la base de datos (ClinicalNote) y cambia el estado de la cita a COMPLETED.

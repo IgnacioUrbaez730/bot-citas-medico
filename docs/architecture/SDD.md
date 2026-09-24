@@ -9,6 +9,8 @@ Para mantener la separación de responsabilidades exigida en las Reglas del Proy
 ```prisma
 model Contact {
   phone      String    @id // Llave primaria: Número de WhatsApp
+  name       String?   // Nombre legal del titular (opcional/manual)
+  nationalId String?   // Cédula/DNI del titular del WhatsApp
   alias      String?   // Nombre editado manualmente por la doctora
   aiName     String?   // Nombre inferido automáticamente por Gemini
   createdAt  DateTime  @default(now())
@@ -17,62 +19,63 @@ model Contact {
   messages   Message[]
   patients   Patient[] // 1 Contacto puede representar a N Pacientes
 }
-
-model Message {
-  id        String   @id @default(uuid())
-  phone     String
-  sender    String   // 'bot', 'patient', 'doctor'
-  text      String
-  createdAt DateTime @default(now())
-  
-  contact   Contact  @relation(fields: [phone], references: [phone])
-}
-
-model BotSession {
-  phone        String   @id
-  doctorId     String
-  step         String   @default("WELCOME")
-  temporalData Json?
-  updatedAt    DateTime @updatedAt
-}
 ```
 
 ### Dominio Clínico
 ```prisma
 model Patient {
-  id           String        @id @default(uuid())
-  contactPhone String        // FK a Contact (El representante en WhatsApp)
-  doctorId     String
-  name         String        // Nombre real del paciente
-  nationalId   String?       // Cédula/DNI (Opcional)
-  birthDate    DateTime?
-  createdAt    DateTime      @default(now())
+  id               String        @id @default(uuid())
+  doctorId         String
+  contactPhone     String?       // FK Opcional a Contact (El representante en WhatsApp)
+  name             String?       // Nombre real del paciente
+  nationalId       String?       // Cédula del paciente (Calculada automáticamente para menores)
+  birthDate        DateTime?
+  gender           String?
+  bloodType        String?
+  email            String?
+  occupation       String?
+  address          String?
+  emergencyContact String?
+  createdAt        DateTime      @default(now())
   
-  // Relaciones
-  contact      Contact       @relation(fields: [contactPhone], references: [phone])
-  doctor       Doctor        @relation(fields: [doctorId], references: [id])
-  appointments Appointment[]
+  appointments     Appointment[]
+  medicalBackground MedicalBackground?
+}
+
+model MedicalBackground {
+  id              String   @id @default(uuid())
+  patientId       String   @unique
+  allergies       String?  @default("Ninguna conocida")
+  personalHistory String?  
+  familyHistory   String?  
+  surgicalHistory String?  
+  habits          String?  
+  observations    String?  
+}
+
+model ClinicalNote {
+  id              String      @id @default(uuid())
+  appointmentId   String      @unique
+  audioUrl        String?
+  soapData        Json?       // Contiene motivo, evolucion, diagnostico, recipe, e indicaciones
+  prescriptionUrl String?
+  isSigned        Boolean     @default(false)
 }
 ```
 
 ## 2. Flujo de Toma de Control (Manual Override)
 1. **Frontend (Flutter):** El usuario envía un `POST` a `/api/doctor/send` en el backend.
 2. **Backend (Node.js):** 
-   - Busca el proceso global `global.messageBuffer[phone]` y detiene el temporizador (`clearTimeout`).
+   - Busca el proceso global y detiene el temporizador.
    - Usa `WhatsAppProvider.sendTextMessage` para enviar el payload a Meta Graph API.
-3. **Database (Supabase):** El frontend o backend guardan el mensaje en la tabla `Message` para persistencia y lectura en tiempo real mediante WebSockets (Supabase Streams).
+3. **Database:** Guarda el mensaje en `Message` para persistencia y lectura en tiempo real mediante WebSockets (Supabase Streams).
 
-## 3. Flujo de Gestión Manual de Agenda
-1. **Creación (Flutter -> Node):** La pantalla de `CalendarScreen` envía `POST` a `/api/doctor/book-manual`.
-   - Node normaliza el teléfono.
-   - Crea/busca el `Contact` y `Patient`.
-   - Inserta la cita en `Appointment`.
-   - Notifica por WhatsApp usando `WhatsAppProvider`.
-2. **Edición/Cancelación:** Flutter envía `POST` a `/api/doctor/update-appointment`.
-   - Actualiza el estado (`CANCELLED`) o fecha en `Appointment`.
-   - Informa pasivamente a Flutter (que hace fetch nuevamente) y activamente al paciente vía WhatsApp.
+## 3. Flujo de Gestión de Pacientes y Agendas
+1. **Creación de Paciente:** `POST /api/doctor/patients` (Soporta número de WhatsApp opcional y cálculo de Cédula Escolar para menores).
+2. **Perfil Médico Permanente:** `GET /api/doctor/patients/:id` y `PUT /api/doctor/patients/:id` para gestionar demografía y `MedicalBackground`.
+3. **Historia Médica Diaria:** `POST /api/doctor/medical-record` guarda la evolución de una cita particular en `ClinicalNote.soapData`.
 
-## 4. Flujo de Function Calling (Próxima Implementación)
-- Se habilitará la propiedad `tools` en el `GeminiProvider`.
-- Si Gemini deduce la intención de agendar, retorna un llamado a función.
-- El backend procesa el llamado, inserta en `Appointment` y le devuelve la confirmación a Gemini para que construya la respuesta humana final.
+## 4. Estructura SOAP para Historia Médica
+- **Subjetivo / Objetivo:** Motivo, Enfermedad actual, Examen físico.
+- **Diagnóstico:** Diagnóstico médico.
+- **Plan:** Dividido en **recipe** (medicinas) e **indicaciones** (instrucciones para el paciente) para la futura impresión de PDFs separados.
