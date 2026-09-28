@@ -94,7 +94,7 @@ app.post('/api/doctor/book-manual', async (req, res) => {
         patientId: patient.id,
         dateTime: appointmentDate,
         reason: reason || 'Consulta General',
-        status: 'SCHEDULED'
+        status: 'CONFIRMED'
       }
     });
 
