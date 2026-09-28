@@ -173,27 +173,45 @@ app.post('/api/doctor/medical-record', async (req, res) => {
   }
 
   try {
+    let finalApptId = appointmentId;
+
+    if (appointmentId.startsWith('manual-')) {
+      const doctor = await prisma.doctor.findFirst();
+      const newAppt = await prisma.appointment.create({
+        data: {
+          doctorId: doctor.id,
+          patientId: patientId,
+          dateTime: new Date(),
+          reason: 'Consulta Ad-hoc',
+          status: 'COMPLETED'
+        }
+      });
+      finalApptId = newAppt.id;
+    }
+
     const note = await prisma.clinicalNote.upsert({
-      where: { appointmentId },
+      where: { appointmentId: finalApptId },
       update: {
         soapData: soapData,
-        status: 'SIGNED'
+        isSigned: true
       },
       create: {
-        appointmentId,
-        patientId,
+        appointmentId: finalApptId,
         soapData: soapData,
-        status: 'SIGNED'
+        isSigned: true
       }
     });
 
-    await prisma.appointment.update({
-      where: { id: appointmentId },
-      data: { status: 'COMPLETED' }
-    });
+    if (!appointmentId.startsWith('manual-')) {
+      await prisma.appointment.update({
+        where: { id: finalApptId },
+        data: { status: 'COMPLETED' }
+      });
+    }
 
     res.json({ success: true, note });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Error al guardar la historia clínica' });
   }
 });
