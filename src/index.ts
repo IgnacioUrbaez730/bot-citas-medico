@@ -341,7 +341,11 @@ app.get('/api/doctor/patients/:id', async (req, res) => {
       where: { id: req.params.id },
       include: {
         contact: true,
-        medicalBackground: true
+        medicalBackground: true,
+        appointments: {
+          orderBy: { dateTime: 'desc' },
+          include: { clinicalNote: true }
+        }
       }
     });
     if (!patient) return res.status(404).json({ error: 'Paciente no encontrado' });
