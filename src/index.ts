@@ -263,7 +263,7 @@ app.post('/api/doctor/patients', async (req, res) => {
     if (isMinor) {
       const birthYear = birthDate ? new Date(birthDate).getFullYear().toString().slice(-2) : '00';
       const ciRepresentante = contactNationalId || contact?.nationalId || '00000000';
-      finalNationalId = \`\${twinNumber}\${birthYear}\${ciRepresentante}\`;
+      finalNationalId = `${twinNumber}${birthYear}${ciRepresentante}`;
       generatedSchoolId = true;
     }
 
@@ -288,7 +288,7 @@ app.post('/api/doctor/patients', async (req, res) => {
     if (birthDate) {
       if (birthDate.includes('/')) {
         const parts = birthDate.split('/');
-        if (parts.length === 3) parsedBirthDate = new Date(\`\${parts[2]}-\${parts[1]}-\${parts[0]}T12:00:00Z\`);
+        if (parts.length === 3) parsedBirthDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00Z`);
       } else {
         parsedBirthDate = new Date(birthDate);
       }
@@ -346,7 +346,7 @@ app.put('/api/doctor/patients/:id', async (req, res) => {
     if (birthDate) {
       if (birthDate.includes('/')) {
         const parts = birthDate.split('/');
-        if (parts.length === 3) parsedBirthDate = new Date(\`\${parts[2]}-\${parts[1]}-\${parts[0]}T12:00:00Z\`);
+        if (parts.length === 3) parsedBirthDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00Z`);
       } else {
         parsedBirthDate = new Date(birthDate);
       }
@@ -397,5 +397,5 @@ app.put('/api/doctor/patients/:id', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(\`Servidor escuchando en puerto \${PORT}\`);
+  console.log(`Servidor escuchando en puerto ${PORT}`);
 });
