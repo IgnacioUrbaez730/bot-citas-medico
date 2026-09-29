@@ -333,7 +333,15 @@ Texto del mÃ©dico: "${text}"`;
       });
 
       if (!response.text) throw new Error("Respuesta vacÃ­a de Gemini");
-      return JSON.parse(response.text);
+      
+      let rawText = response.text.trim();
+      if (rawText.startsWith('```json')) {
+        rawText = rawText.replace(/^```json/, '').replace(/```$/, '').trim();
+      } else if (rawText.startsWith('```')) {
+        rawText = rawText.replace(/^```/, '').replace(/```$/, '').trim();
+      }
+      return JSON.parse(rawText);
+
     } catch (error) {
       console.error('[GeminiProvider] Error en extractConfig:', error);
       throw error;

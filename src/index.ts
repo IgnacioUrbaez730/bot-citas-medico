@@ -21,7 +21,8 @@ app.use('/api/webhook/whatsapp', whatsappRoutes);
 
 
 // Endpoint para analizar audio (AI Scribe)
-const upload = multer({ dest: 'uploads/' });
+const os = require('os');
+const upload = multer({ dest: os.tmpdir() });
 
 app.post('/api/doctor/analyze-audio', upload.single('audio'), async (req, res) => {
   try {
