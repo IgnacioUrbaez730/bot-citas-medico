@@ -354,7 +354,7 @@ Texto del mÃ©dico: "${text}"`;
       console.log(`[GeminiProvider] Subiendo archivo de audio a Gemini: ${filePath}`);
       const uploadResult = await this.ai.files.upload({
         file: filePath,
-        mimeType: mimeType,
+        config: { mimeType: mimeType },
       });
 
       console.log(`[GeminiProvider] Archivo subido con URI: ${uploadResult.uri}. Analizando...`);
@@ -377,7 +377,7 @@ Texto del mÃ©dico: "${text}"`;
 }`;
 
       const response = await this.generateContentWithRetry({
-        model: 'gemini-1.5-pro',
+        model: 'gemini-3.5-flash',
         contents: [
           {
             role: 'user',
