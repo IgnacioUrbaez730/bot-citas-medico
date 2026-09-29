@@ -1,3 +1,5 @@
+import multer from 'multer';
+import fsModule from 'fs';
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
@@ -16,6 +18,41 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/webhook/whatsapp', whatsappRoutes);
+
+
+// Endpoint para analizar audio (AI Scribe)
+const upload = multer({ dest: 'uploads/' });
+
+app.post('/api/doctor/analyze-audio', upload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se envió ningún archivo de audio' });
+    }
+
+    const { path, mimetype } = req.file;
+    
+    // Instanciar el provider directamente para usar su método (esto podría mejorarse inyectándolo)
+    const geminiProvider = require('./providers/gemini.provider').GeminiProvider;
+    const ai = new geminiProvider();
+    
+    const soapData = await ai.extractMedicalRecordFromAudio(path, mimetype);
+    
+    // Limpiar archivo local temporal
+    fsModule.unlinkSync(path);
+
+    res.json({
+      success: true,
+      soapData
+    });
+  } catch (error: any) {
+    console.error('[API] Error al analizar audio:', error);
+    // Limpiar archivo local temporal si hubo error
+    if (req.file && fsModule.existsSync(req.file.path)) {
+      fsModule.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Error al procesar el audio con la IA' });
+  }
+});
 
 app.post('/api/doctor/extract-config', async (req, res) => {
   const { text } = req.body;

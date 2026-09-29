@@ -339,4 +339,65 @@ Texto del mÃ©dico: "${text}"`;
       throw error;
     }
   }
+
+  // Método para extraer datos médicos de un archivo de audio (AI Scribe)
+  async extractMedicalRecordFromAudio(filePath: string, mimeType: string): Promise<any> {
+    try {
+      console.log(`[GeminiProvider] Subiendo archivo de audio a Gemini: ${filePath}`);
+      const uploadResult = await this.ai.files.upload({
+        file: filePath,
+        mimeType: mimeType,
+      });
+
+      console.log(`[GeminiProvider] Archivo subido con URI: ${uploadResult.uri}. Analizando...`);
+      
+      const prompt = `Eres un escriba médico experto. Escucha la siguiente consulta entre un doctor y su paciente. Extrae la información clínica y devuelve EXCLUSIVAMENTE un JSON puro (sin markdown, sin bloques de código) con esta estructura exacta (si no se menciona algo, déjalo en blanco):
+{
+  "motivo": "string",
+  "evolucion": "string",
+  "peso": "string",
+  "talla": "string",
+  "ta": "string",
+  "fc": "string",
+  "temp": "string",
+  "satO2": "string",
+  "hallazgos": "string",
+  "examenesComplementarios": "string",
+  "diagnostico": "string",
+  "recipe": "string",
+  "indicaciones": "string"
+}`;
+
+      const response = await this.generateContentWithRetry({
+        model: 'gemini-1.5-pro',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { fileData: { fileUri: uploadResult.uri, mimeType: uploadResult.mimeType } },
+              { text: prompt }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+        },
+      });
+
+      if (!response.text) throw new Error("Respuesta vacía de Gemini");
+      
+      // Intentar borrar el archivo de Gemini para no acumular basura (opcional)
+      try {
+        await this.ai.files.delete({ name: uploadResult.name });
+      } catch (e) {
+        console.warn('[GeminiProvider] No se pudo borrar el archivo remoto:', e);
+      }
+
+      return JSON.parse(response.text);
+    } catch (error) {
+      console.error('[GeminiProvider] Error en extractMedicalRecordFromAudio:', error);
+      throw error;
+    }
+  }
 }
