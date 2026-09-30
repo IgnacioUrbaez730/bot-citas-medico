@@ -361,20 +361,22 @@ Texto del mÃ©dico: "${text}"`;
       
       const prompt = `Eres un escriba médico experto. Escucha la siguiente consulta entre un doctor y su paciente. Extrae la información clínica y devuelve EXCLUSIVAMENTE un JSON puro (sin markdown, sin bloques de código) con esta estructura exacta (si no se menciona algo, déjalo en blanco):
 {
-  "motivo": "string",
-  "evolucion": "string",
-  "peso": "string",
-  "talla": "string",
-  "ta": "string",
-  "fc": "string",
-  "temp": "string",
-  "satO2": "string",
-  "hallazgos": "string",
-  "examenesComplementarios": "string",
-  "diagnostico": "string",
-  "recipe": "string",
-  "indicaciones": "string"
-}`;
+    "motivo": "string",
+    "evolucion": "string",
+    "examenFisico": {
+      "peso": "string",
+      "talla": "string",
+      "ta": "string",
+      "fc": "string",
+      "temp": "string",
+      "satO2": "string",
+      "hallazgos": "string"
+    },
+    "examenesComplementarios": "string",
+    "diagnostico": "string",
+    "recipe": "string",
+    "indicaciones": "string"
+  }`;
 
       const response = await this.generateContentWithRetry({
         model: 'gemini-3.5-flash',
