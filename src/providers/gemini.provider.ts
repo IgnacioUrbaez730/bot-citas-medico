@@ -22,8 +22,12 @@ export class GeminiProvider {
   private async generateContentWithRetry(options: any, maxRetries: number = 3): Promise<any> {
     for (let i = 0; i < maxRetries; i++) {
       try {
-        return await this.ai.models.generateContent(options);
-      } catch (error: any) {
+          const generatePromise = this.ai.models.generateContent(options);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout de Gemini excedido (30s)')), 30000)
+          );
+          return await Promise.race([generatePromise, timeoutPromise]);
+        } catch (error: any) {
         const errorMsg = error.message || '';
         const isRateLimit = errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota') || errorMsg.includes('503') || errorMsg.includes('UNAVAILABLE');
         
