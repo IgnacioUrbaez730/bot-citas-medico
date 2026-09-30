@@ -404,7 +404,13 @@ Texto del mÃ©dico: "${text}"`;
         console.warn('[GeminiProvider] No se pudo borrar el archivo remoto:', e);
       }
 
-      return JSON.parse(response.text);
+      let rawTextAudio = (response.text || "").trim();
+        if (rawTextAudio.startsWith('```json')) {
+          rawTextAudio = rawTextAudio.replace(/^```json/, '').replace(/```$/, '').trim();
+        } else if (rawTextAudio.startsWith('```')) {
+          rawTextAudio = rawTextAudio.replace(/^```/, '').replace(/```$/, '').trim();
+        }
+        return JSON.parse(rawTextAudio);
     } catch (error) {
       console.error('[GeminiProvider] Error en extractMedicalRecordFromAudio:', error);
       throw error;
